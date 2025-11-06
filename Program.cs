@@ -3,101 +3,113 @@ using System;
 namespace LabWork
 {
     // ============================
-    // КЛАС: Рівносторонній трикутник
+    // БАЗОВИЙ КЛАС: ConicBase (загальна крива 2-го порядку)
     // ============================
-    public class EquilateralTriangle
+    public abstract class ConicBase
     {
-        protected double Side;     // довжина сторони
-        protected double Angle;    // кут (60°)
+        private const double _tolerance = 1e-9;
 
-        // Введення значення сторони трикутника
-        public virtual void SetValues(double side)
+        public abstract double Evaluate(double x, double y);
+
+        public virtual bool Contains(double x, double y)
         {
-            if (side <= 0)
-            {
-                throw new ArgumentException("Довжина сторони повинна бути додатною.");
-            }
-
-            Side = side;
-            Angle = 60; // у рівносторонньому всі кути 60°
-        }
-
-        // Довжини сторін (усі однакові)
-        public virtual double[] GetSides()
-        {
-            return new double[] { Side, Side, Side };
-        }
-
-        // Периметр
-        public virtual double GetPerimeter()
-        {
-            return 3 * Side;
-        }
-
-        // Друк інформації
-        public virtual void PrintInfo()
-        {
-            Console.WriteLine("=== Рівносторонній трикутник ===");
-            Console.WriteLine($"Сторона: {Side}");
-            Console.WriteLine($"Кути: 60°, 60°, 60°");
-            Console.WriteLine($"Периметр: {GetPerimeter()}");
+            return Math.Abs(Evaluate(x, y)) <= _tolerance;
         }
     }
 
     // ============================
-    // КЛАС: Загальний трикутник (похідний)
+    // КЛАС: Загальна крива другого порядку (Ax^2 + Bxy + Cy^2 + Dx + Ey + F)
     // ============================
-    public class Triangle : EquilateralTriangle
+    public class Conic : ConicBase
     {
-        private double Angle2;
-        private double Angle3;
+        private double _a11, _a12, _a22, _b1, _b2, _c;
 
-        // Введення довжини сторони та двох прилеглих кутів
-        public void SetValues(double side, double angleA, double angleB)
+        public double A11 { get => _a11; set => _a11 = value; }
+        public double A12 { get => _a12; set => _a12 = value; }
+        public double A22 { get => _a22; set => _a22 = value; }
+        public double B1  { get => _b1;  set => _b1  = value; }
+        public double B2  { get => _b2;  set => _b2  = value; }
+        public double C   { get => _c;   set => _c   = value; }
+
+        public Conic() { }
+
+        public Conic(double a11, double a12, double a22, double b1, double b2, double c)
         {
-            if (side <= 0)
-                throw new ArgumentException("Довжина сторони повинна бути додатною.");
-
-            if (angleA <= 0 || angleB <= 0 || angleA + angleB >= 180)
-                throw new ArgumentException("Кути введено некоректно.");
-
-            Side = side;
-            Angle = angleA;
-            Angle2 = angleB;
-            Angle3 = 180 - angleA - angleB;
+            _a11 = a11;
+            _a12 = a12;
+            _a22 = a22;
+            _b1  = b1;
+            _b2  = b2;
+            _c   = c;
         }
 
-        // Обчислення довжин інших сторін за теоремою синусів
-        public override double[] GetSides()
+        public override double Evaluate(double x, double y)
         {
-            double a = Side; // відома сторона
-            double b = a * Math.Sin(DegToRad(Angle2)) / Math.Sin(DegToRad(Angle));
-            double c = a * Math.Sin(DegToRad(Angle3)) / Math.Sin(DegToRad(Angle));
-
-            return new double[] { a, b, c };
+            return _a11 * x * x + _a12 * x * y + _a22 * y * y + _b1 * x + _b2 * y + _c;
         }
 
-        // Периметр
-        public override double GetPerimeter()
+        public void Print()
         {
-            double[] s = GetSides();
-            return s[0] + s[1] + s[2];
+            Console.WriteLine("=== Загальна крива другого порядку ===");
+            Console.WriteLine($"{A11}*x^2 + {A12}xy + {A22}*y^2 + {B1}x + {B2}y + {C} = 0");
+        }
+    }
+
+    // ============================
+    // КЛАС: Еліпс (похідний від ConicBase)
+    // Рівняння: x^2 / a^2 + y^2 / b^2 = 1
+    // ============================
+    public class Ellipse : ConicBase
+    {
+        private double _a;
+        private double _b;
+
+        public double A
+        {
+            get => _a;
+            set
+            {
+                if (value <= 0) throw new ArgumentException("Піввісь a повинна бути додатною.");
+                _a = value;
+            }
         }
 
-        private double DegToRad(double deg)
+        public double B
         {
-            return deg * Math.PI / 180.0;
+            get => _b;
+            set
+            {
+                if (value <= 0) throw new ArgumentException("Піввісь b повинна бути додатною.");
+                _b = value;
+            }
         }
 
-        public override void PrintInfo()
-        {
-            Console.WriteLine("=== Звичайний трикутник ===");
-            Console.WriteLine($"Сторона: {Side}");
-            Console.WriteLine($"Кути: {Angle}°, {Angle2}°, {Angle3}°");
+        public Ellipse() { }
 
-            double[] sides = GetSides();
-            Console.WriteLine($"Сторони: {sides[0]:F2}, {sides[1]:F2}, {sides[2]:F2}");
-            Console.WriteLine($"Периметр: {GetPerimeter():F2}");
+        public Ellipse(double a, double b)
+        {
+            SetCoefficients(a, b);
+        }
+
+        public void SetCoefficients(double a, double b)
+        {
+            if (a <= 0 || b <= 0)
+                throw new ArgumentException("Півосі еліпса повинні бути додатними.");
+
+            _a = a;
+            _b = b;
+        }
+
+        public override double Evaluate(double x, double y)
+        {
+            return (x * x) / (_a * _a) + (y * y) / (_b * _b) - 1;
+        }
+
+        public void Print()
+        {
+            Console.WriteLine("=== Еліпс ===");
+            Console.WriteLine($"a = {_a}, b = {_b}");
+            Console.WriteLine($"Рівняння: x^2/{_a * _a} + y^2/{_b * _b} = 1");
         }
     }
 
@@ -108,15 +120,16 @@ namespace LabWork
     {
         static void Main()
         {
-            // Рівносторонній трикутник
-            EquilateralTriangle eq = new EquilateralTriangle();
-            eq.SetValues(5);           // довжина сторони = 5
-            eq.PrintInfo();
+            Console.WriteLine("=== Перевірка еліпса ===");
+            Ellipse ellipse = new Ellipse(5, 3);
+            ellipse.Print();
+            Console.WriteLine("Contains(3,2): " + ellipse.Contains(3, 2));
 
-            // Звичайний трикутник
-            Triangle tr = new Triangle();
-            tr.SetValues(6, 40, 60);   // сторона = 6, прилеглі кути 40° та 60°
-            tr.PrintInfo();
+            Console.WriteLine();
+            Console.WriteLine("=== Перевірка коніки ===");
+            Conic conic = new Conic(1, 0, 1, -4, 0, -5);
+            conic.Print();
+            Console.WriteLine("Contains(2,1): " + conic.Contains(2, 1));
         }
     }
 }
